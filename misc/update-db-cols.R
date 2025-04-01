@@ -1,0 +1,12 @@
+        rm(list = ls(all.names = TRUE)) 
+        closeAllConnections()
+        pg <- dbConnect(RPostgres::Postgres()
+                        , host=Sys.getenv("pg_host")
+                        , port=Sys.getenv("pg_port")
+                        , dbname="wmata"
+                        , user=Sys.getenv("pg_user")
+                        , password=Sys.getenv("pg_password"))
+        res <- dbGetQuery(pg,'select * from public."bus_incidents"')     
+        res$IncidentShortDescription <- paste0(gsub("\\..*","",res$IncidentDescription),".") 
+        bus_incidents <- subset(res,select=c(RoutesAffected,DirectionAffected,IncidentType,IncidentShortDescription,IncidentDescription,IncidentID,IncidentLastUpdated))
+        dbWriteTable(pg,"bus_incidents",bus_incidents,row.names = FALSE, overwrite = TRUE) 

@@ -1,0 +1,6 @@
+setwd("/home/eab")
+print(Sys.time())
+print(Sys.getpid())
+print('schedule-save.R')
+rm(list = ls(all.names = TRUE))
+RouteID <- "V12"

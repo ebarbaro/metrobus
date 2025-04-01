@@ -1,0 +1,5 @@
+rm(list = ls(all.names = TRUE)) 
+print(paste0(Sys.time(),": Session PID: ", Sys.getpid()))
+cmd <- read.csv2("/home/eab/Projects/metrobus/gitignore/inputs/sys_cmd.txt",sep="")
+system(cmd$x,wait=TRUE)
+quit()

@@ -1,0 +1,1 @@
+select * from public."log" where "Source" = 'bus_pos' order by "trigger_timestamp" desc limit 1

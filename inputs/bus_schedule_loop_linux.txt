@@ -1,0 +1,630 @@
+start_time <- Sys.time()
+RouteID <- trimws(RouteID)
+date <- as.character(str_sub(Sys.time(),1,10))
+path <- "/home/eab/Projects/metrobus/"
+path_deets_routes <- data.frame()
+path_deets_stops <- data.frame()
+scheduled_departures  <- data.frame()
+scheduled_stops <- data.frame()
+
+if (file.exists(paste0("/home/eab/Projects/metrobus/logs/Errors/",date,"/",RouteID,".log"))) { invisible(file.copy(paste0("/home/eab/Projects/metrobus/logs/Errors/",date,"/",RouteID,".log"),"/home/eab/Projects/metrobus/logs/Errors/",overwrite = TRUE)) }
+
+  ## Schedule (Returns schedules for a given route variant for a given date.)
+  schedule <- GET(paste0("https://api.wmata.com/Bus.svc/json/jRouteSchedule?RouteID=",RouteID,"&Date=",date,"&IncludingVariations=true"), add_headers("api_key" = Sys.getenv("wmata_key"))) %>% content(as="text", encoding = "UTF-8") %>% fromJSON()
+ 
+ {
+    if ((!is.null(schedule$Direction0) & class(schedule$Direction0) != "NULL" & class(schedule$Direction0) != "logical" & length(schedule$Direction0) != 0)
+        & (!is.null(schedule$Direction1) & class(schedule$Direction1) != "NULL" & class(schedule$Direction1) != "logical" & length(schedule$Direction1) != 0)) {
+        dir0 <- data.frame()
+        i <- 1
+        
+        for (i in i:nrow(schedule$Direction0)) {
+          dir0_stg <- data.frame(
+            TripID = coalesce(schedule[["Direction0"]][["TripID"]][[i]],NA),
+            RouteID = RouteID,
+            Rte = coalesce(schedule[["Direction0"]][["RouteID"]][[i]],NA),
+            Name = schedule[["Name"]],
+            TripHeadsign = coalesce(schedule[["Direction0"]][["TripHeadsign"]][[i]],NA),
+            DirectionText = coalesce(schedule[["Direction0"]][["TripDirectionText"]][[i]],NA),
+            DirectionNum = coalesce(schedule[["Direction0"]][["DirectionNum"]][[i]],NA),
+            StartTime = coalesce(schedule[["Direction0"]][["StartTime"]][[i]],NA),
+            EndTime = coalesce(schedule[["Direction0"]][["EndTime"]][[i]],NA))
+          
+          dir0 <- rbind(dir0,dir0_stg)
+          #print(paste0(RouteID,": processed departures ",i))
+          rm(dir0_stg)
+        }
+        
+        dir1 <- data.frame()
+        i <- 1
+        
+        for (i in i:nrow(schedule$Direction1)) {
+          dir1_stg <- data.frame(
+            TripID = coalesce(schedule[["Direction1"]][["TripID"]][[i]],NA),
+            RouteID = RouteID,
+            Rte = coalesce(schedule[["Direction1"]][["RouteID"]][[i]],NA),
+            Name = schedule[["Name"]],
+            TripHeadsign = coalesce(schedule[["Direction1"]][["TripHeadsign"]][[i]],NA),
+            DirectionText = coalesce(schedule[["Direction1"]][["TripDirectionText"]][[i]],NA),
+            DirectionNum = coalesce(schedule[["Direction1"]][["DirectionNum"]][[i]],NA),
+            StartTime = coalesce(schedule[["Direction1"]][["StartTime"]][[i]],NA),
+            EndTime = coalesce(schedule[["Direction1"]][["EndTime"]][[i]],NA))
+          
+          dir1 <- rbind(dir1,dir1_stg)
+          rm(dir1_stg)
+        }
+        scheduled_departures_stg <- bind_rows(dir0,dir1)
+        scheduled_departures <- rbind(scheduled_departures,scheduled_departures_stg)
+        suppressWarnings(rm(dir0,dir1,i,scheduled_departures_stg))
+        
+        print(paste0(Sys.time(),": ",RouteID," sched deps: ",nrow(scheduled_departures)))
+        
+        ##stops
+        
+        dir0 <- data.frame()
+        x <- 1
+        i <- 1
+        
+        for (x in 1:nrow(schedule$Direction0)) {
+          
+          for (i in 1:nrow(schedule$Direction0[["StopTimes"]][[x]])) {
+            {
+              if (i > nrow(schedule$Direction0[["StopTimes"]][[x]])) {
+                rm(i)
+                break
+              }
+              else {
+                dir0_stg <- data.frame(
+                  TripID = coalesce(schedule$Direction0[["TripID"]][[x]],NA),
+                  RouteID = RouteID,
+                  Rte = coalesce(schedule[["Direction0"]][["RouteID"]][[x]],NA),
+                  Name = schedule[["Name"]],
+                  TripHeadsign = coalesce(schedule$Direction0[["TripHeadsign"]][[x]],NA),
+                  DirectionText = coalesce(schedule$Direction0[["TripDirectionText"]][[x]],NA),
+                  DirectionNum = coalesce(schedule$Direction0[["DirectionNum"]][[x]],NA),
+                  StopID = coalesce(schedule$Direction0[["StopTimes"]][[x]][["StopID"]][[i]],NA),
+                  StopName = coalesce(schedule$Direction0[["StopTimes"]][[x]][["StopName"]][[i]],NA),
+                  StopSeq = coalesce(schedule$Direction0[["StopTimes"]][[x]][["StopSeq"]][[i]],NA),
+                  Time = coalesce(schedule$Direction0[["StopTimes"]][[x]][["Time"]][[i]],NA))
+                
+                dir0 <- rbind(dir0,dir0_stg)
+                rm(dir0_stg)
+                i <- i + 1
+              }
+              
+            }
+          }
+          i <- 1
+          x <- x + 1
+        }
+        
+        #
+        
+        dir1 <- data.frame()
+        x <- 1
+        i <- 1
+        for (x in 1:nrow(schedule$Direction1)) {
+          
+          for (i in 1:nrow(schedule$Direction1[["StopTimes"]][[x]])){
+            {
+              if (i > nrow(schedule$Direction1[["StopTimes"]][[x]])) {
+                rm(i)
+                break
+              }
+              else {
+                dir1_stg <- data.frame(
+                  TripID = coalesce(schedule$Direction1[["TripID"]][[x]],NA),
+                  RouteID = RouteID,
+                  Rte = coalesce(schedule[["Direction1"]][["RouteID"]][[x]],NA),
+                  Name = schedule[["Name"]],
+                  TripHeadsign = coalesce(schedule$Direction1[["TripHeadsign"]][[x]],NA),
+                  DirectionText = coalesce(schedule$Direction1[["TripDirectionText"]][[x]],NA),
+                  DirectionNum = coalesce(schedule$Direction1[["DirectionNum"]][[x]],NA),
+                  StopID = coalesce(schedule$Direction1[["StopTimes"]][[x]][["StopID"]][[i]],NA),
+                  StopName = coalesce(schedule$Direction1[["StopTimes"]][[x]][["StopName"]][[i]],NA),
+                  StopSeq = coalesce(schedule$Direction1[["StopTimes"]][[x]][["StopSeq"]][[i]],NA),
+                  Time = coalesce(schedule$Direction1[["StopTimes"]][[x]][["Time"]][[i]],NA))
+                
+                dir1 <- rbind(dir1,dir1_stg)
+                rm(dir1_stg)
+                i <- i + 1
+              }
+              
+            }
+          }
+          i <- 1
+          x <- x + 1
+        }
+        
+        scheduled_stops_stg <- bind_rows(dir0,dir1)
+        scheduled_stops <- rbind(scheduled_stops,scheduled_stops_stg)
+        suppressWarnings(rm(dir0,dir1,i,path_deets,schedule,scheduled_stops_stg))
+        suppressWarnings(rm(dir0,dir1,i,x,schedule,scheduled_stops_stg))
+        print(paste0(Sys.time(),": ",RouteID," sched stops: ",nrow(scheduled_stops)))
+
+      }
+
+      else if ((is.null(schedule$Direction0) | class(schedule$Direction0) == "NULL" | class(schedule$Direction0) == "logical" | length(schedule$Direction0) == 0)
+              & (is.null(schedule$Direction1) | class(schedule$Direction1) == "NULL" | class(schedule$Direction1) == "logical" | length(schedule$Direction1) == 0)) {
+        suppressWarnings(rm(dir0,dir1,i,scheduled_departures_stg))
+        print(paste0(Sys.time(),": ",RouteID," - No records collected from schedule API."))
+        q()
+      }
+
+      else if ((!is.null(schedule$Direction0) & class(schedule$Direction0) != "NULL" & class(schedule$Direction0) != "logical" & length(schedule$Direction0) != 0)
+              & (is.null(schedule$Direction1) | class(schedule$Direction1) == "NULL" | class(schedule$Direction1) == "logical" | length(schedule$Direction1) == 0)) {
+        dir0 <- data.frame()
+        i <- 1
+        
+        for (i in i:nrow(schedule$Direction0)) {
+          dir0_stg <- data.frame(
+            TripID = coalesce(schedule[["Direction0"]][["TripID"]][[i]],NA),
+            RouteID = RouteID,
+            Rte = coalesce(schedule[["Direction0"]][["RouteID"]][[i]],NA),
+            Name = schedule[["Name"]],
+            TripHeadsign = coalesce(schedule[["Direction0"]][["TripHeadsign"]][[i]],NA),
+            DirectionText = coalesce(schedule[["Direction0"]][["TripDirectionText"]][[i]],NA),
+            DirectionNum = coalesce(schedule[["Direction0"]][["DirectionNum"]][[i]],NA),
+            StartTime = coalesce(schedule[["Direction0"]][["StartTime"]][[i]],NA),
+            EndTime = coalesce(schedule[["Direction0"]][["EndTime"]][[i]],NA))
+          
+          dir0 <- rbind(dir0,dir0_stg)
+          rm(dir0_stg)
+        }        
+        scheduled_departures_stg <- dir0        
+        scheduled_departures <- rbind(scheduled_departures,scheduled_departures_stg)
+        suppressWarnings(rm(dir0,dir1,i,scheduled_departures_stg)) 
+        
+        print(paste0(Sys.time(),": ",RouteID," sched deps: ",nrow(scheduled_departures)))
+        
+        ##stops
+        
+        dir0 <- data.frame()
+        x <- 1
+        i <- 1
+        
+        for (x in 1:nrow(schedule$Direction0)) {
+          
+          for (i in 1:nrow(schedule$Direction0[["StopTimes"]][[x]])) {
+            {
+              if (i > nrow(schedule$Direction0[["StopTimes"]][[x]])) {
+                rm(i)
+                break
+              }
+              else {
+                dir0_stg <- data.frame(
+                  TripID = coalesce(schedule$Direction0[["TripID"]][[x]],NA),
+                  RouteID = RouteID,
+                  Rte = coalesce(schedule[["Direction0"]][["RouteID"]][[x]],NA),
+                  Name = schedule[["Name"]],
+                  TripHeadsign = coalesce(schedule$Direction0[["TripHeadsign"]][[x]],NA),
+                  DirectionText = coalesce(schedule$Direction0[["TripDirectionText"]][[x]],NA),
+                  DirectionNum = coalesce(schedule$Direction0[["DirectionNum"]][[x]],NA),
+                  StopID = coalesce(schedule$Direction0[["StopTimes"]][[x]][["StopID"]][[i]],NA),
+                  StopName = coalesce(schedule$Direction0[["StopTimes"]][[x]][["StopName"]][[i]],NA),
+                  StopSeq = coalesce(schedule$Direction0[["StopTimes"]][[x]][["StopSeq"]][[i]],NA),
+                  Time = coalesce(schedule$Direction0[["StopTimes"]][[x]][["Time"]][[i]],NA))
+                
+                dir0 <- rbind(dir0,dir0_stg)
+                rm(dir0_stg)
+                i <- i + 1
+              }
+              
+            }
+          }
+          i <- 1
+          x <- x + 1
+        }
+        
+        scheduled_stops_stg <- dir0
+        scheduled_stops <- rbind(scheduled_stops,scheduled_stops_stg)
+        suppressWarnings(rm(dir0,dir1,i,path_deets,schedule,scheduled_stops_stg))
+        suppressWarnings(rm(dir0,dir1,i,x,schedule,scheduled_stops_stg))
+        print(paste0(Sys.time(),": ",RouteID," sched stops: ",nrow(scheduled_stops)))
+         
+      }
+
+      else if  ((is.null(schedule$Direction0) | class(schedule$Direction0) == "NULL" | class(schedule$Direction0) == "logical" | length(schedule$Direction0) == 0)
+           & (!is.null(schedule$Direction1) & class(schedule$Direction1) != "NULL" & class(schedule$Direction1) != "logical" & length(schedule$Direction1) != 0)) {   
+        dir1 <- data.frame()
+        i <- 1
+        
+        for (i in i:nrow(schedule$Direction1)) {
+          dir1_stg <- data.frame(
+            TripID = coalesce(schedule[["Direction1"]][["TripID"]][[i]],NA),
+            RouteID = RouteID,
+            Rte = coalesce(schedule[["Direction1"]][["RouteID"]][[i]],NA),
+            Name = schedule[["Name"]],
+            TripHeadsign = coalesce(schedule[["Direction1"]][["TripHeadsign"]][[i]],NA),
+            DirectionText = coalesce(schedule[["Direction1"]][["TripDirectionText"]][[i]],NA),
+            DirectionNum = coalesce(schedule[["Direction1"]][["DirectionNum"]][[i]],NA),
+            StartTime = coalesce(schedule[["Direction1"]][["StartTime"]][[i]],NA),
+            EndTime = coalesce(schedule[["Direction1"]][["EndTime"]][[i]],NA))
+          
+          dir1 <- rbind(dir1,dir1_stg)
+          rm(dir1_stg)
+        } 
+        scheduled_departures_stg <- dir1
+        scheduled_departures <- rbind(scheduled_departures,scheduled_departures_stg)
+        suppressWarnings(rm(dir0,dir1,i,scheduled_departures_stg))
+        
+        print(paste0(Sys.time(),": ",RouteID," sched deps: ",nrow(scheduled_departures)))
+        
+        ##stops
+        
+        dir1 <- data.frame()
+        x <- 1
+        i <- 1
+        for (x in 1:nrow(schedule$Direction1)) {
+          
+          for (i in 1:nrow(schedule$Direction1[["StopTimes"]][[x]])) {
+            {
+              if (i > nrow(schedule$Direction1[["StopTimes"]][[x]])) {
+                rm(i)
+                break
+              }
+              else {
+                dir1_stg <- data.frame(
+                  TripID = coalesce(schedule$Direction1[["TripID"]][[x]],NA),
+                  RouteID = RouteID,
+                  Rte = coalesce(schedule[["Direction1"]][["RouteID"]][[x]],NA),
+                  Name = schedule[["Name"]],
+                  TripHeadsign = coalesce(schedule$Direction1[["TripHeadsign"]][[x]],NA),
+                  DirectionText = coalesce(schedule$Direction1[["TripDirectionText"]][[x]],NA),
+                  DirectionNum = coalesce(schedule$Direction1[["DirectionNum"]][[x]],NA),
+                  StopID = coalesce(schedule$Direction1[["StopTimes"]][[x]][["StopID"]][[i]],NA),
+                  StopName = coalesce(schedule$Direction1[["StopTimes"]][[x]][["StopName"]][[i]],NA),
+                  StopSeq = coalesce(schedule$Direction1[["StopTimes"]][[x]][["StopSeq"]][[i]],NA),
+                  Time = coalesce(schedule$Direction1[["StopTimes"]][[x]][["Time"]][[i]],NA))
+                
+                dir1 <- rbind(dir1,dir1_stg)
+                rm(dir1_stg)
+                i <- i + 1
+              }
+              
+            }
+          }
+          i <- 1
+          x <- x + 1
+        }
+        scheduled_stops_stg <- dir1
+        scheduled_stops <- rbind(scheduled_stops,scheduled_stops_stg)
+        scheduled_stops$Time <- gsub("T"," ",scheduled_stops$Time)
+        scheduled_stops$Time <- ymd_hms(scheduled_stops$Time, tz = Sys.timezone())
+        suppressWarnings(rm(dir0,dir1,i,x,schedule,scheduled_stops_stg))
+        print(paste0(Sys.time(),": ",RouteID," sched stops: ",nrow(scheduled_stops)))
+ }
+}
+
+## path details (returns the set of ordered latitude/longitude points along a route variant along with the list of stops served)
+a <- 1
+RouteIDn <- as.array(unique(scheduled_departures$Rte))
+
+for (a in a:length(RouteIDn)) {
+  
+   path_deets <- GET(paste0("https://api.wmata.com/Bus.svc/json/jRouteDetails?RouteID=",RouteIDn[a],"&Date=",date), add_headers("api_key" = Sys.getenv("wmata_key"))) %>% content(as="text", encoding = "UTF-8") %>% fromJSON() 
+
+if (is.list(path_deets)) {
+  ##stops
+  {
+    if ((!is.null(path_deets$Direction0$Stops) & class(path_deets$Direction0$Stops) != "NULL" & class(path_deets$Direction0$Stops) != "logical" & length(path_deets$Direction0$Stops) != 0)
+        & (!is.null(path_deets$Direction1$Stops) & class(path_deets$Direction1$Stops) != "NULL" & class(path_deets$Direction1$Stops) != "logical" & length(path_deets$Direction1$Stops) != 0)) {
+
+        dir0 <- suppressWarnings(rbindlist(path_deets$Direction0["Stops"],fill = TRUE))
+        dir0$RouteID <- RouteID
+        dir0$Rte <- path_deets$RouteID
+        dir0$Name <- path_deets$Name
+        dir0$TripHeadsign <- path_deets[["Direction0"]][["TripHeadsign"]]
+        dir0$DirectionText <- path_deets[["Direction0"]][["DirectionText"]]
+        dir0$DirectionNum <- path_deets[["Direction0"]][["DirectionNum"]]
+        dir0 <- dir0 %>% relocate(RouteID,Name,TripHeadsign,DirectionText,DirectionNum, .before = StopID)
+        AR0 <- dir0 %>% 
+              group_by(Rte, StopID) %>%
+              summarise_at(vars(-group_cols()), ~ toString(.[!is.na(.)]))
+        AR0 <- subset(AR0,select = c(Rte, StopID, Routes))
+        dir0 <- subset(dir0,select=-c(Routes))
+        dir0 <- dir0[!duplicated(dir0[,c("Rte","StopID")]),]
+        dir0 <- left_join(dir0,AR0,by=c("Rte","StopID"),relationship = "many-to-many")
+        dir0$Addtl_Routes <- as.character(dir0$Routes)
+        dir0_target <- subset(dir0,select=c(StopID,Lon,Lat,RouteID,Rte,DirectionText,DirectionNum,Name,TripHeadsign,Addtl_Routes))
+        
+        dir1 <- suppressWarnings(rbindlist(path_deets[["Direction1"]]["Stops"],fill = TRUE))
+        dir1$RouteID <- RouteID
+        dir1$Rte <- path_deets$RouteID
+        dir1$Name <- path_deets$Name
+        dir1$TripHeadsign <- path_deets[["Direction1"]][["TripHeadsign"]]
+        dir1$DirectionText <- path_deets[["Direction1"]][["DirectionText"]]
+        dir1$DirectionNum <- path_deets[["Direction1"]][["DirectionNum"]]
+        dir1 <- dir1 %>% relocate(RouteID,Name,TripHeadsign,DirectionText,DirectionNum, .before = StopID)
+        AR1 <- dir1 %>% 
+              group_by(Rte, StopID) %>%
+              summarise_at(vars(-group_cols()), ~ toString(.[!is.na(.)]))
+        AR1 <- subset(AR1,select = c(Rte, StopID, Routes))
+        dir1 <- subset(dir1,select=-c(Routes))
+        dir1 <- dir1[!duplicated(dir1[,c("Rte","StopID")]),]
+        dir1 <- left_join(dir1,AR1,by=c("Rte","StopID"),relationship = "many-to-many")
+        dir1$Addtl_Routes <- as.character(dir1$Routes)
+        dir1_target <- subset(dir1,select=c(StopID,Lon,Lat,RouteID,Rte,DirectionText,DirectionNum,Name,TripHeadsign,Addtl_Routes))
+        
+        path_deets_stops_stg <- bind_rows(dir0_target,dir1_target)
+        path_deets_stops <- rbind(path_deets_stops,path_deets_stops_stg)
+      }
+     else if ((is.null(path_deets$Direction0$Stops) | class(path_deets$Direction0$Stops) == "NULL" | class(path_deets$Direction0$Stops) == "logical" | length(path_deets$Direction0$Stops) == 0)
+              & (is.null(path_deets$Direction1$Stops) | class(path_deets$Direction1$Stops) == "NULL" | class(path_deets$Direction1$Stops) == "logical" | length(path_deets$Direction1$Stops) == 0)) {
+        suppressWarnings(rm(dir0))
+        print(paste0(Sys.time(),": No records collected from path deets API."))
+        q()
+      }
+    else if ((!is.null(path_deets$Direction0$Stops) & class(path_deets$Direction0$Stops) != "NULL" & class(path_deets$Direction0$Stops) != "logical" & length(path_deets$Direction0$Stops) != 0)
+              & (is.null(path_deets$Direction1$Stops) | class(path_deets$Direction1$Stops) == "NULL" | class(path_deets$Direction1$Stops) == "logical" | length(path_deets$Direction1$Stops) == 0)) {
+        dir0 <- suppressWarnings(rbindlist(path_deets$Direction0["Stops"],fill = TRUE))
+        dir0$RouteID <- RouteID
+        dir0$Rte <- path_deets$RouteID
+        dir0$Name <- path_deets$Name
+        dir0$TripHeadsign <- path_deets[["Direction0"]][["TripHeadsign"]]
+        dir0$DirectionText <- path_deets[["Direction0"]][["DirectionText"]]
+        dir0$DirectionNum <- path_deets[["Direction0"]][["DirectionNum"]]
+        dir0 <- dir0 %>% relocate(RouteID,Name,TripHeadsign,DirectionText,DirectionNum, .before = StopID)
+        AR0 <- dir0 %>% 
+              group_by(Rte, StopID) %>%
+              summarise_at(vars(-group_cols()), ~ toString(.[!is.na(.)]))
+        AR0 <- subset(AR0,select = c(Rte, StopID, Routes))
+        dir0 <- subset(dir0,select=-c(Routes))
+        dir0 <- dir0[!duplicated(dir0[,c("Rte","StopID")]),]
+        dir0 <- left_join(dir0,AR0,by=c("Rte","StopID"),relationship = "many-to-many")
+        dir0$Addtl_Routes <- as.character(dir0$Routes)
+        dir0_target <- subset(dir0,select=c(StopID,Lon,Lat,RouteID,Rte,DirectionText,DirectionNum,Name,TripHeadsign,Addtl_Routes))
+        
+        path_deets_stops_stg <- dir0_target
+        path_deets_stops <- rbind(path_deets_stops,path_deets_stops_stg)
+      }
+     else if ((is.null(path_deets$Direction0$Stops) | class(path_deets$Direction0$Stops) == "NULL" | class(path_deets$Direction0$Stops) == "logical" | length(path_deets$Direction0$Stops) == 0)
+              & (!is.null(path_deets$Direction1$Stops) & class(path_deets$Direction1$Stops) != "NULL" & class(path_deets$Direction1$Stops) != "logical" & length(path_deets$Direction1$Stops) != 0)) {
+        dir1 <- suppressWarnings(rbindlist(path_deets[["Direction1"]]["Stops"],fill = TRUE))
+        dir1$RouteID <- RouteID
+        dir1$Rte <- path_deets$RouteID
+        dir1$Name <- path_deets$Name
+        dir1$TripHeadsign <- path_deets[["Direction1"]][["TripHeadsign"]]
+        dir1$DirectionText <- path_deets[["Direction1"]][["DirectionText"]]
+        dir1$DirectionNum <- path_deets[["Direction1"]][["DirectionNum"]]
+        dir1 <- dir1 %>% relocate(RouteID,Name,TripHeadsign,DirectionText,DirectionNum, .before = StopID)
+        AR1 <- dir1 %>% 
+              group_by(Rte, StopID) %>%
+              summarise_at(vars(-group_cols()), ~ toString(.[!is.na(.)]))
+        AR1 <- subset(AR1,select = c(Rte, StopID, Routes))
+        dir1 <- subset(dir1,select=-c(Routes))
+        dir1 <- dir1[!duplicated(dir1[,c("Rte","StopID")]),]
+        dir1 <- left_join(dir1,AR1,by=c("Rte","StopID"),relationship = "many-to-many")
+        dir1$Addtl_Routes <- as.character(dir1$Routes)
+        dir1_target <- subset(dir1,select=c(StopID,Lon,Lat,RouteID,Rte,DirectionText,DirectionNum,Name,TripHeadsign,Addtl_Routes))
+        
+        path_deets_stops_stg <- dir1_target
+        path_deets_stops <- rbind(path_deets_stops,path_deets_stops_stg)       
+      } 
+   }
+
+  suppressWarnings(rm(dir0,dir0_dups,dir0_target,dir0_target_x,dir1,dir1_dups,dir1_target,path_deets_stops_stg,path_deets_routes_stg,i,x,AR0,AR1))
+  print(paste0(Sys.time(),": ",RouteIDn[a]," path stops: ",nrow(path_deets_stops)))
+
+  ##route
+  {
+    if ((!is.null(path_deets$Direction0$Shape) & class(path_deets$Direction0$Shape) != "NULL" & class(path_deets$Direction0$Shape) != "logical" & length(path_deets$Direction0$Shape) != 0)
+        & (!is.null(path_deets$Direction1$Shape) & class(path_deets$Direction1$Shape) != "NULL" & class(path_deets$Direction1$Shape) != "logical" & length(path_deets$Direction1$Shape) != 0)) {
+        dir0 <- data.frame()
+        i <- 1
+        
+        for (i in i:nrow(path_deets$Direction0$Shape)) {
+          dir0_stg <- data.frame(
+            RouteID = RouteID,
+            Rte = path_deets$RouteID,
+            Name = path_deets$Name,
+            TripHeadsign = path_deets[["Direction0"]][["TripHeadsign"]],
+            DirectionText = path_deets[["Direction0"]][["DirectionText"]],
+            DirectionNum = path_deets[["Direction0"]][["DirectionNum"]],
+            Lat = path_deets[["Direction0"]][["Shape"]][["Lat"]][[i]],
+            Lon = path_deets[["Direction0"]][["Shape"]][["Lon"]][[i]],
+            SeqNum = path_deets[["Direction0"]][["Shape"]][["SeqNum"]][[i]])
+          
+          dir0 <- rbind(dir0,dir0_stg)
+          #print(paste0(RouteID,": processed seq ",i))
+          rm(dir0_stg)
+        }
+        
+        dir1 <- data.frame()
+        i <- 1
+        
+        for (i in i:nrow(path_deets$Direction1$Shape)) {
+          dir1_stg <- data.frame(
+            RouteID = RouteID,
+            Rte = path_deets$RouteID,
+            Name = path_deets$Name,
+            TripHeadsign = path_deets[["Direction1"]][["TripHeadsign"]],
+            DirectionText = path_deets[["Direction1"]][["DirectionText"]],
+            DirectionNum = path_deets[["Direction1"]][["DirectionNum"]],
+            Lat = path_deets[["Direction1"]][["Shape"]][["Lat"]][[i]],
+            Lon = path_deets[["Direction1"]][["Shape"]][["Lon"]][[i]],
+            SeqNum = path_deets[["Direction1"]][["Shape"]][["SeqNum"]][[i]])
+          
+          dir1 <- rbind(dir1,dir1_stg)
+          #print(paste0(RouteID,": processed seq ",i))
+          rm(dir1_stg)
+        }
+        path_deets_routes_stg <- bind_rows(dir0,dir1)
+        path_deets_routes <- rbind(path_deets_routes,path_deets_routes_stg)
+        suppressWarnings(rm(dir0,dir0_dups,dir0_target,dir0_target_x,dir1,dir1_dups,dir1_target,path_deets_stops_stg,path_deets_routes_stg,i,x,path_deets))
+      }
+   else if ((is.null(path_deets$Direction0$Shape) | class(path_deets$Direction0$Shape) == "NULL" | class(path_deets$Direction0$Shape) == "logical" | length(path_deets$Direction0$Shape) == 0)
+              & (is.null(path_deets$Direction1$Shape) | class(path_deets$Direction1$Shape) == "NULL" | class(path_deets$Direction1$Shape) == "logical" | length(path_deets$Direction1$Shape) == 0)) {
+        suppressWarnings(rm(dir0,dir0_dups,dir0_target,dir0_target_x,dir1,dir1_dups,dir1_target,path_deets_stops_stg,path_deets_routes_stg,i,x,path_deets))
+      }
+   else if ((!is.null(path_deets$Direction0$Shape) & class(path_deets$Direction0$Shape) != "NULL" & class(path_deets$Direction0$Shape) != "logical" & length(path_deets$Direction0$Shape) != 0)
+              & (is.null(path_deets$Direction1$Shape) | class(path_deets$Direction1$Shape) == "NULL" | class(path_deets$Direction1$Shape) == "logical" | length(path_deets$Direction1$Shape) == 0)) {
+        dir0 <- data.frame()
+        i <- 1
+        
+        for (i in i:nrow(path_deets$Direction0$Shape)) {
+          dir0_stg <- data.frame(
+            RouteID = RouteID,
+            Rte = path_deets$RouteID,
+            Name = path_deets$Name,
+            TripHeadsign = path_deets[["Direction0"]][["TripHeadsign"]],
+            DirectionText = path_deets[["Direction0"]][["DirectionText"]],
+            DirectionNum = path_deets[["Direction0"]][["DirectionNum"]],
+            Lat = path_deets[["Direction0"]][["Shape"]][["Lat"]][[i]],
+            Lon = path_deets[["Direction0"]][["Shape"]][["Lon"]][[i]],
+            SeqNum = path_deets[["Direction0"]][["Shape"]][["SeqNum"]][[i]])
+          
+          dir0 <- rbind(dir0,dir0_stg)
+          #print(paste0(RouteID,": processed seq ",i))
+          rm(dir0_stg)
+        }
+        path_deets_routes_stg <- dir0
+        path_deets_routes <- rbind(path_deets_routes,path_deets_routes_stg)
+        suppressWarnings(rm(dir0,dir0_dups,dir0_target,dir0_target_x,dir1,dir1_dups,dir1_target,path_deets_stops_stg,path_deets_routes_stg,i,x,path_deets))
+      }
+   else if ((is.null(path_deets$Direction0$Shape) | class(path_deets$Direction0$Shape) == "NULL" | class(path_deets$Direction0$Shape) == "logical" | length(path_deets$Direction0$Shape) == 0)
+            & (!is.null(path_deets$Direction1$Shape) & class(path_deets$Direction1$Shape) != "NULL" & class(path_deets$Direction1$Shape) != "logical" & length(path_deets$Direction1$Shape) != 0)) {
+        dir1 <- data.frame()
+        i <- 1
+        
+        for (i in i:nrow(path_deets$Direction1$Shape)) {
+          dir1_stg <- data.frame(
+            RouteID = RouteID,
+            Rte = path_deets$RouteID,
+            Name = path_deets$Name,
+            TripHeadsign = path_deets[["Direction1"]][["TripHeadsign"]],
+            DirectionText = path_deets[["Direction1"]][["DirectionText"]],
+            DirectionNum = path_deets[["Direction1"]][["DirectionNum"]],
+            Lat = path_deets[["Direction1"]][["Shape"]][["Lat"]][[i]],
+            Lon = path_deets[["Direction1"]][["Shape"]][["Lon"]][[i]],
+            SeqNum = path_deets[["Direction1"]][["Shape"]][["SeqNum"]][[i]])
+          
+          dir1 <- rbind(dir1,dir1_stg)
+          #print(paste0(RouteID,": processed seq ",i))
+          rm(dir1_stg)
+        }
+        path_deets_routes_stg <- dir1
+        path_deets_routes <- rbind(path_deets_routes,path_deets_routes_stg)
+        suppressWarnings(rm(dir0,dir0_dups,dir0_target,dir0_target_x,dir1,dir1_dups,dir1_target,path_deets_stops_stg,path_deets_routes_stg,i,x,path_deets))
+      }
+        print(paste0(Sys.time(),": ",RouteIDn[a]," path routes: ",nrow(path_deets_routes)))
+  }
+}
+    a <- a + 1
+}
+  suppressWarnings(rm(dir0,dir1,i,path_deets,schedule,scheduled_stops_stg))
+  save.image(paste0(path,"gitignore/images/workspaces/",RouteID,".RData"))
+  pg <- dbConnect(RPostgres::Postgres()
+                      , host=Sys.getenv("pg_host")
+                      , port=Sys.getenv("pg_port")
+                      , dbname="wmata"
+                      , user=Sys.getenv("pg_user")
+                      , password=Sys.getenv("pg_password"))
+
+  end_time <- Sys.time()
+  {
+    if (nrow(path_deets_routes) > 0) {
+      path_deets_routes$trigger_timestamp <- Sys.time()
+      save(path_deets_routes, file = paste0(path,"gitignore/images/routes/",RouteID,".RData"))
+      dbWriteTable(pg,paste0('routes_',RouteID),path_deets_routes,row.names = FALSE, overwrite = TRUE, append = FALSE)  
+      log <- data.frame(
+                     RouteID = RouteID,
+                     Source = "path_deets_routes",
+                     rows_added = nrow(path_deets_routes),
+                     StartTime = start_time,
+                     EndTime = end_time,
+                     trigger_timestamp = Sys.time())
+      dbWriteTable(pg,"log",log, row.names = FALSE, overwrite = FALSE, append = TRUE)  
+      suppressWarnings(rm(log))
+  }
+   else if (nrow(path_deets_routes) <= 0)  {
+     error_log <- data.frame(
+       RouteID = RouteID,
+       Source = "path_deets_routes",
+       rows_added = 0,
+       StartTime = start_time,
+       EndTime = end_time,
+       trigger_timestamp = Sys.time())
+     dbWriteTable(pg,"log",error_log,row.names = FALSE, append = TRUE) 
+     suppressWarnings(rm(error_log))
+   }
+     }
+
+  {
+
+    if (nrow(scheduled_departures) > 0) {
+      scheduled_departures$StartTime <- gsub("T"," ",scheduled_departures$StartTime)
+      scheduled_departures$StartTime <- ymd_hms(scheduled_departures$StartTime, tz = Sys.timezone())
+      scheduled_departures$EndTime <- gsub("T"," ",scheduled_departures$EndTime)
+      scheduled_departures$EndTime <- ymd_hms(scheduled_departures$EndTime, tz = Sys.timezone())
+      scheduled_departures$trigger_timestamp <- Sys.time()
+      save(scheduled_stops, file = paste0(path,"gitignore/images/schedules/",RouteID,".RData"))
+      dbWriteTable(pg,paste0('sched_',RouteID),scheduled_departures,row.names = FALSE, overwrite = TRUE, append = FALSE) 
+      log <- data.frame(
+                     RouteID = RouteID,
+                     Source = "scheduled_departures",
+                     rows_added = nrow(scheduled_departures),
+                     StartTime = start_time,
+                     EndTime = end_time,
+                     trigger_timestamp = Sys.time())
+      dbWriteTable(pg,"log",log, row.names = FALSE, overwrite = FALSE, append = TRUE)  
+      suppressWarnings(rm(log)) 
+  }
+   else if (nrow(scheduled_departures) <= 0)  {
+     error_log <- data.frame(
+       RouteID = RouteID,
+       Source = "scheduled_departures",
+       rows_added = 0,
+       StartTime = start_time,
+       EndTime = end_time,
+       trigger_timestamp = Sys.time())
+     dbWriteTable(pg,"log",error_log,row.names = FALSE, append = TRUE) 
+     suppressWarnings(rm(error_log)) 
+   }
+  }
+
+ {
+    if (nrow(scheduled_stops) > 0) {
+      scheduled_stops$Time <- gsub("T"," ",scheduled_stops$Time)
+      scheduled_stops$Time <- ymd_hms(scheduled_stops$Time)
+      scheduled_stops_stg <- left_join(scheduled_stops,path_deets_stops,by=c("Rte","StopID","DirectionText"))
+      scheduled_stops <- subset(scheduled_stops_stg,select=c(RouteID.x,Rte,TripID,Name.x,TripHeadsign.x,DirectionText,DirectionNum.x,
+                                                             StopSeq,StopID,StopName,Lon,Lat,Addtl_Routes,Time))
+      names(scheduled_stops)<-c("RouteID","Rte","TripID","Name","TripHeadsign","DirectionText","DirectionNum",
+                                "StopSeq","StopID","StopName","Lon","Lat","Addtl_Routes","Time")
+      suppressWarnings(rm(scheduled_stops_stg,RouteIDn))
+      scheduled_stops$trigger_timestamp <- Sys.time()
+      save(scheduled_stops, file = paste0("/home/eab/Projects/metrobus/gitignore/images/stops/",RouteID,".RData"))
+      dbWriteTable(pg,paste0('stops_',RouteID),scheduled_stops,row.names = FALSE, overwrite = TRUE, append = FALSE) 
+      log <- data.frame(
+                     RouteID = RouteID,
+                     Source = "scheduled_stops",
+                     rows_added = nrow(scheduled_stops),
+                     StartTime = start_time,
+                     EndTime = end_time,
+                     trigger_timestamp = Sys.time())
+      dbWriteTable(pg,"log",log, row.names = FALSE, overwrite = FALSE, append = TRUE)  
+      suppressWarnings(rm(log))
+  }
+   else if (nrow(scheduled_stops) <= 0) {
+     error_log <- data.frame(
+       RouteID = RouteID,
+       Source = "scheduled_stops",
+       rows_added = 0,
+       StartTime = start_time,
+       EndTime = end_time,
+       trigger_timestamp = Sys.time())
+     dbWriteTable(pg,"log",error_log,row.names = FALSE, append = TRUE) 
+     suppressWarnings(rm(error_log))
+   }
+  }
+  
+  dbDisconnect(pg)   
+  closeAllConnections()
+  
+  if (file.exists(paste0("/home/eab/Projects/metrobus/logs/Errors/",RouteID,".R"))) { invisible(file.remove(paste0("/home/eab/Projects/metrobus/logs/Errors/",RouteID,".R"))) }  
+  if (file.exists(paste0("/home/eab/Projects/metrobus/logs/Errors/",date,"/",RouteID,".log"))) { invisible(file.remove(paste0("/home/eab/Projects/metrobus/logs/Errors/",RouteID,".log"))) }
+
+  print(paste0(Sys.time(),": ",RouteID," script completed (",round(difftime(end_time,start_time,units = "secs"))," secs)"))
+  rm(list = ls(all.names = TRUE)) 
+  invisible(gc())
