@@ -23,7 +23,8 @@ date <- as.character(str_sub(Sys.time(),1,10))
     dirs <- list.dirs(path)
     dirs <- subset(dirs, !(dirs %like% "/home/eab/Projects/metrobus/.git")
                         &!(dirs %like% "/home/eab/Projects/metrobus/.Rproj.user")
-                        &!(dirs %like% "/home/eab/Projects/metrobus/routes/images"))
+                        &!(dirs %like% "/home/eab/Projects/metrobus/routes/images")
+                        &!(dirs %like% paste0("/home/eab/Projects/metrobus/logs/Errors/",date)))
   }
   else if (Sys.info()['sysname'] == "Windows") {
     dirs <- list.dirs(path)
@@ -71,7 +72,7 @@ for (d in d:nrow(dirs)) {
               fx <- files[f,]
               #print(paste0(Sys.time(),": Checking ",f," of ",nrow(files)," ",fx$FilePath,"...."))
               {
-                  if (fx$isdir == TRUE | (!(fx$FileName %like% ".txt")&!(fx$FileName %like% ".R")&!(fx$FileName %like% ".r")&!(fx$FileName %like% ".sql"))) {
+                  if (fx$isdir == TRUE | (!(fx$FileName %like% ".txt")&!(fx$FileName %like% ".R")&!(fx$FileName %like% ".r")&!(fx$FileName %like% ".sql")&!(fx$FileName %like% ".sh"))) {
                           df <- data.frame(
                                     path = fx$FilePath,
                                     type = "file"
@@ -112,6 +113,7 @@ for (d in d:nrow(dirs)) {
 }
 
 #### scrubadubdub :)
+/home/eab/Projects/metrobus/logs/Errors/2025-04-02
 rm(list=setdiff(ls(),c("date","path","start_time","wd","would_delete","would_not_delete")))
 invisible(gc())
 
@@ -141,6 +143,6 @@ closeAllConnections()
 
 #### run autoupdate
 print(paste0(Sys.time(),": Fetching updates. Please hold...."))
-system("sudo apt-get update && sudo apt-get -y upgrade",wait = TRUE)
+system("sudo apt-get update && sudo apt-get -y upgrade && sudo apt-get -y autoremove",wait = TRUE)
 print(paste0(Sys.time(),": Updates complete! Rebooting. Bye!!!"))
 system("sudo reboot",wait = TRUE)
