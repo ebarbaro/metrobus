@@ -23,8 +23,9 @@ date <- as.character(str_sub(Sys.time(),1,10))
     dirs <- list.dirs(path)
     dirs <- subset(dirs, !(dirs %like% "/home/eab/Projects/metrobus/.git")
                         &!(dirs %like% "/home/eab/Projects/metrobus/.Rproj.user")
-                        &!(dirs %like% "/home/eab/Projects/metrobus/routes/images")
-                        &!(dirs %like% paste0("/home/eab/Projects/metrobus/logs/Errors/",date)))
+                        &!(dirs %like% paste0("/home/eab/Projects/metrobus/logs/",date))
+                        &!(dirs %like% paste0("/home/eab/Projects/metrobus/logs/Errors/",date))
+                        &!(dirs %like% "/home/eab/Projects/metrobus/gitignore"))
   }
   else if (Sys.info()['sysname'] == "Windows") {
     dirs <- list.dirs(path)
@@ -72,7 +73,7 @@ for (d in d:nrow(dirs)) {
               fx <- files[f,]
               #print(paste0(Sys.time(),": Checking ",f," of ",nrow(files)," ",fx$FilePath,"...."))
               {
-                  if (fx$isdir == TRUE | (!(fx$FileName %like% ".txt")&!(fx$FileName %like% ".R")&!(fx$FileName %like% ".r")&!(fx$FileName %like% ".sql")&!(fx$FileName %like% ".sh"))) {
+                  if (fx$isdir == TRUE | (!(fx$FileName %like% ".txt")&!(fx$FileName %like% ".R")&!(fx$FileName %like% ".r")&!(fx$FileName %like% ".sql")&!(fx$FileName %like% ".log")&!(fx$FileName %like% ".sh"))) {
                           df <- data.frame(
                                     path = fx$FilePath,
                                     type = "file"
@@ -113,7 +114,6 @@ for (d in d:nrow(dirs)) {
 }
 
 #### scrubadubdub :)
-/home/eab/Projects/metrobus/logs/Errors/2025-04-02
 rm(list=setdiff(ls(),c("date","path","start_time","wd","would_delete","would_not_delete")))
 invisible(gc())
 
