@@ -1,11 +1,9 @@
-setwd("/home/eab")
 rm(list = ls(all.names = TRUE)) 
 closeAllConnections()
 start_time <- Sys.time()
 print(paste0(Sys.getpid()," - Start time: ",start_time))
 date <- as.character(str_sub(Sys.time(),1,10))
 
-if (!dir.exists(paste0("/home/eab/Projects/metrobus/logs/",date))) { dir.create(paste0("/home/eab/Projects/metrobus/logs/",date)) }
 
 {
   if (Sys.info()['sysname'] == "Linux") {
@@ -18,13 +16,20 @@ if (!dir.exists(paste0("/home/eab/Projects/metrobus/logs/",date))) { dir.create(
     wd <- "C:/Users/ebarbaro"
     path <- "C:/Users/ebarbaro/R/Sandbox/metrobus/"
   }
+  else if (Sys.info()['sysname'] == "Darwin") {
+    setwd(Sys.getenv("HOME"))
+    wd <- Sys.getenv("HOME")
+    path <- Sys.getenv("wmata_proj_path")
+  }
 }
+
+if (!dir.exists(paste0(path,"/logs/",date))) { dir.create(paste0(path,"/logs/",date)) }
 
 ## bus position (Returns bus positions for the given route. If no parameters are specified, all bus positions are returned. Bus positions are refreshed approximately every 7 to 10 seconds.)
 bus_pos <- GET("https://api.wmata.com/Bus.svc/json/jBusPositions", add_headers("api_key" = Sys.getenv("wmata_key"))) %>% content(as="text", encoding = "UTF-8") %>% fromJSON()  
   
 {
-    if (Sys.info()['sysname'] == "Linux") {
+    if ((Sys.info()['sysname'] == "Linux")|(Sys.info()['sysname'] == "Darwin")) {
         bus_pos <- suppressWarnings(rbindlist(bus_pos,fill = TRUE)) 
     }
     else if (Sys.info()['sysname'] == "Windows") {
@@ -39,7 +44,7 @@ pg <- dbConnect(RPostgres::Postgres()
 		                      , user=Sys.getenv("pg_user")
 		                      , password=Sys.getenv("pg_password"))
 
-save.image("/home/eab/Projects/metrobus/gitingnore/images/workspaces/bus_pos.RData")
+save.image(paste0(path,"/gitignore/images/workspaces/bus_pos.RData"))
 
 {
 	if (nrow(bus_pos) > 0) {
@@ -76,4 +81,4 @@ save.image("/home/eab/Projects/metrobus/gitingnore/images/workspaces/bus_pos.RDa
     closeAllConnections()
     print(paste0(Sys.time(),": Fetched ",nrow(bus_pos)," bus positions in ",ceiling(difftime(Sys.time(),start_time,units = "secs"))," sec(s)"))
     invisible(gc())
- }	
+}	
