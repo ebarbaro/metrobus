@@ -154,6 +154,12 @@ rm(not_updated_x)
       bus_pos$TripStartTime <- ymd_hms(bus_pos$TripStartTime, tz = 'UTC')
       bus_pos$TripEndTime <- gsub("T"," ",bus_pos$TripEndTime)
       bus_pos$TripEndTime <- ymd_hms(bus_pos$TripEndTime, tz = 'UTC')
+      bus_pos <- bus_pos %>%
+                 st_as_sf(coords = c("Lon","Lat")) %>%
+                 st_set_crs(4326)
+      bus_pos$geometry <- gsub("POINT \\(","",bus_pos$geometry)
+      bus_pos$geometry <- trimws(bus_pos$geometry)
+      bus_pos <- as.data.frame(bus_pos)
       bus_pos$trigger_timestamp <- Sys.time()
       end_time <- Sys.time() 
       dbWriteTable(pg,"bus_pos",bus_pos,row.names = FALSE, overwrite = TRUE, append = FALSE)   
@@ -198,6 +204,12 @@ rm(not_updated_x)
       bus_pos$TripStartTime <- ymd_hms(bus_pos$TripStartTime, tz = 'UTC')
       bus_pos$TripEndTime <- gsub("T"," ",bus_pos$TripEndTime)
       bus_pos$TripEndTime <- ymd_hms(bus_pos$TripEndTime, tz = 'UTC')
+      bus_pos <- bus_pos %>%
+                 st_as_sf(coords = c("Lon","Lat")) %>%
+                 st_set_crs(4326) 
+      bus_pos$geometry <- gsub("POINT \\(","",bus_pos$geometry)
+      bus_pos$geometry <- trimws(bus_pos$geometry)
+      bus_pos <- as.data.frame(bus_pos)        
       bus_pos$trigger_timestamp <- Sys.time()
       end_time <- Sys.time()
 
